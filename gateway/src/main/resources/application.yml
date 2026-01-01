@@ -1,0 +1,25 @@
+server:
+  port: 8887
+
+spring:
+  application:
+    name: gateway
+
+  cloud:
+    discovery:
+      enabled: true
+
+    consul:
+      host: localhost
+      port: 8500
+      enabled: true
+      discovery:
+        enabled: true
+        service-name: ${spring.application.name}
+        instance-id: ${spring.application.name}:${random.value}
+        register: true
+
+# Sécurité : désactiver Eureka
+eureka:
+  client:
+    enabled: false
