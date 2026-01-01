@@ -1,0 +1,114 @@
+# Docker Compose - Architecture Microservices avec Consul
+# Déploiement complet : Gateway, Client, Voiture, MySQL, Consul
+#
+# @author Hamza Aglagal
+# @organization EMSI - École Marocaine des Sciences de l'Ingénieur
+# @date 2025
+
+version: '3'
+
+services:
+
+  # Service MySQL - Base de données principale
+  mysql:
+    image: mysql:latest
+    container_name: mysql-container1
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    networks:
+      - microservices-network
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  # Service Consul
+  consul:
+    image: consul:1.15.4
+    container_name: consul-container
+    ports:
+      - "8500:8500"
+    networks:
+      - microservices-network
+    command: agent -dev -ui -client=0.0.0.0
+
+  # Service Gateway
+  gateway-service:
+    build:
+      context: ./gatewayService
+    container_name: gateway-container
+    ports:
+      - "8888:8888"
+    depends_on:
+      - mysql
+      - consul
+    networks:
+      - microservices-network
+    environment:
+      SPRING_CLOUD_CONSUL_HOST: consul
+      SPRING_CLOUD_CONSUL_PORT: 8500
+      SPRING_CLOUD_CONSUL_DISCOVERY_ENABLED: 'true'
+
+  # Service Client
+  client-service:
+    build:
+      context: ./clientService
+    container_name: client-container
+    ports:
+      - "8088:8088"
+    depends_on:
+      - mysql
+      - consul
+      - gateway-service
+    networks:
+      - microservices-network
+    environment:
+      SPRING_CLOUD_CONSUL_HOST: consul
+      SPRING_CLOUD_CONSUL_PORT: 8500
+      SPRING_CLOUD_CONSUL_DISCOVERY_ENABLED: 'true'
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/Micro_ClientDB?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+
+  # Service Voiture
+  voiture-service:
+    build:
+      context: ./voitureService
+    container_name: voiture-container
+    ports:
+      - "8089:8089"
+    depends_on:
+      - mysql
+      - consul
+      - gateway-service
+    networks:
+      - microservices-network
+    environment:
+      SPRING_CLOUD_CONSUL_HOST: consul
+      SPRING_CLOUD_CONSUL_PORT: 8500
+      SPRING_CLOUD_CONSUL_DISCOVERY_ENABLED: 'true'
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/Micro_VoitureDB?createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+
+  # Service phpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin-container
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "8081:80"
+    depends_on:
+      - mysql
+    networks:
+      - microservices-network
+
+networks:
+  microservices-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
